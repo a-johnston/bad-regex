@@ -24,11 +24,10 @@ charlist* append_to_class(char c, charlist *head, charlist *new) {
 
 charlist build_class(char **s, charlist *cons) {
     if (**s == '[') {
-        while (*(++(*s)) != ']') {
+        while (*(++(*s)) != ']' || *((*s)++) != ']') {
             if (**s == '\\') (*s)++;
             cons = append_to_class(**s, cons, malloc(sizeof(charlist)));
         }
-        (*s)++;
         return *cons;
     }
     charlist c = (charlist) { *((*s)++), NULL };
@@ -36,14 +35,12 @@ charlist build_class(char **s, charlist *cons) {
 }
 
 quant build_quant(char **str, quant q) {
-    if (**str == '*') {
-        q = (quant) { 0, 1000000000 };
-    } else if (**str == '+') {
+    if (**str == '+') {
         q.min = 1;
     } else if (**str == '{') {
         sscanf(*str, "{%d,%d}", &(q.min), &(q.max));
         while (**str != '}') (*str)++;
-    } else {
+    } else if (**str != '*') {
         return (quant) { 1, 1 };
     }
     (*str)++;
