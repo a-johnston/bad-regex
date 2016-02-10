@@ -1,100 +1,64 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-typedef struct {
-    char *str;
-    int valid;
-} state;
-
-struct charlist_s {
-    char c;
-    struct charlist_s *next;
-};
-
-typedef struct charlist_s charlist;
-
-typedef struct {
-    int min;
-    int max;
-} quant;
+typedef struct { char *str; int valid; } state;
+typedef struct { char c; void *next; } charlist;
+typedef struct { int min; int max; } quant;
 
 int consume(charlist *class, state *s) {
-    if (class->c == *(s->str)) {
-        (s->str)++;
-        return 1;
-    }
-    if (class->next != NULL) {
-        return consume(class->next, s);
-    }
-    return 0;
+    return (class->c == *(s->str) 
+        || (class->next == NULL ? 0 : consume(class->next, s)));
 }
 
 void consume_q(charlist *class, quant *q, state *s) {
     int t = 0;
-    while (t < q->max && consume(class, s) == 1) {
-        t++;
-    }
-    if (t < q->min) {
-        s->valid = 0;
-    }
+    while (t < q->max && consume(class, s) == 1) { t++; (s->str)++; }
+    if (t < q->min) s->valid = 0;
 }
 
-charlist* append_to_class(char c, charlist *head) {
-    charlist* new = (charlist*) malloc(sizeof(charlist));
+charlist* append_to_class(char c, charlist *head, charlist *new) {
     new->c = c;
     new->next = head;
     return new;
 }
 
-charlist build_class(char **s) {
+charlist build_class(char **s, charlist *cons) {
     if (**s == '[') {
-        int esc = 0;
-        (*s)++;
-        charlist *cons = append_to_class(**s, NULL);
-        (*s)++;
-        while (**s != ']' || esc == 1) {
-            if (**s == '\\' && esc == 0) {
-                esc = 1;
-            } else {
-                esc = 0;
-                cons = append_to_class(**s, cons);
-            }
-            (*s)++;
+        while (*(++(*s)) != ']') {
+            if (**s == '\\') (*s)++;
+            cons = append_to_class(**s, cons, malloc(sizeof(charlist)));
         }
         (*s)++;
         return *cons;
     }
-    charlist c = (charlist) { **s, NULL };
-    (*s)++;
+    charlist c = (charlist) { *((*s)++), NULL };
     return c;
 }
 
-quant build_quant(char **str) {
-    quant q = (quant) { 1, 1 };
+quant build_quant(char **str, quant q) {
     if (**str == '*') {
         q = (quant) { 0, 1000000000 };
     } else if (**str == '+') {
-        q = (quant) { 1, 1000000000 };
+        q.min = 1;
     } else if (**str == '{') {
-        quant q = (quant) { 0, 0 };
-        sscanf(*str, "{%d,%d}%*s", &(q.min), &(q.max));
+        sscanf(*str, "{%d,%d}", &(q.min), &(q.max));
         while (**str != '}') (*str)++;
-        (*str)++;
-        return q;
+    } else {
+        return (quant) { 1, 1 };
     }
     (*str)++;
     return q;
 }
 
-state parse(char *re, state s) {
+int run(char *re, state s) {
     while (*re != '\0' && s.valid == 1) {
-        charlist class = build_class(&re);
-        quant q = build_quant(&re);
+        charlist class = build_class(&re, NULL);
+        quant q = build_quant(&re, (quant) { 0, 1000000000 });
         consume_q(&class, &q, &s);
     }
-    return s;
+    return s.valid == 0 || *(s.str) != '\0';
 }
 
 int main(int argc, char **argv) {
-    return *parse(argv[1], (state) { argv[2], 1 }).str != '\0';
+    return run(argv[1], (state) { argv[2], 1 });
 }
