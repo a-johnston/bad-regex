@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#define MAX 10000000
 
 typedef struct { char *str; int valid; } state;
 typedef struct { char c; void *next; } charlist;
@@ -11,27 +12,20 @@ int consume(charlist *class, state *s) {
 }
 
 void consume_q(charlist *class, quant *q, state *s) {
-    int t = 0;
-    while (t < q->max && consume(class, s) == 1) { t++; (s->str)++; }
-    if (t < q->min) s->valid = 0;
-}
-
-charlist* append_to_class(char c, charlist *head, charlist *new) {
-    new->c = c;
-    new->next = head;
-    return new;
+    while (q->max-->0 && q->min--<MAX && consume(class, s) == 1) (s->str)++;
+    if (q->min >= 0) s->valid = 0;
 }
 
 charlist build_class(char **s, charlist *cons) {
-    if (**s == '[') {
-        while (*(++(*s)) != ']' || *((*s)++) != ']') {
-            if (**s == '\\') (*s)++;
-            cons = append_to_class(**s, cons, malloc(sizeof(charlist)));
-        }
-        return *cons;
+    if (**s != '[') return (charlist) { *((*s)++), NULL };
+    while (*(++(*s)) != ']' || *((*s)++) != ']') {
+        if (**s == '\\') (*s)++;
+        charlist *temp = malloc(sizeof(charlist));
+        temp->c = **s;
+        temp->next = cons;
+        cons = temp;
     }
-    charlist c = (charlist) { *((*s)++), NULL };
-    return c;
+    return *cons;
 }
 
 quant build_quant(char **str, quant q) {
@@ -50,7 +44,7 @@ quant build_quant(char **str, quant q) {
 int run(char *re, state s) {
     while (*re != '\0' && s.valid == 1) {
         charlist class = build_class(&re, NULL);
-        quant q = build_quant(&re, (quant) { 0, 1000000000 });
+        quant q = build_quant(&re, (quant) { 0, MAX });
         consume_q(&class, &q, &s);
     }
     return s.valid == 0 || *(s.str) != '\0';
