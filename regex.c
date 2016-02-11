@@ -7,12 +7,11 @@ typedef struct { char c; void *next; } charlist;
 typedef struct { int min; int max; } quant;
 
 int consume(charlist *class, state *s) {
-    return (class->c == *(s->str) 
-        || (class->next == NULL ? 0 : consume(class->next, s)));
+    return (class->c == *(s->str) || (class->next && consume(class->next, s)));
 }
 
 void consume_q(charlist *class, quant *q, state *s) {
-    while (q->max-->0 && q->min--<MAX && consume(class, s) == 1) (s->str)++;
+    while (q->min--<MAX && q->max-->0 && consume(class, s) == 1) (s->str)++;
     if (q->min >= 0) s->valid = 0;
 }
 
@@ -21,23 +20,21 @@ charlist build_class(char **s, charlist *cons) {
     while (*(++(*s)) != ']' || *((*s)++) != ']') {
         if (**s == '\\') (*s)++;
         charlist *temp = malloc(sizeof(charlist));
-        temp->c = **s;
-        temp->next = cons;
+        *temp = (charlist) { ** s, cons };
         cons = temp;
     }
     return *cons;
 }
 
 quant build_quant(char **str, quant q) {
-    if (**str == '+') {
+    if (**str == '+' && (*str)++) {
         q.min = 1;
-    } else if (**str == '{') {
+    } else if (**str == '{' && (*str)++) {
         sscanf(*str, "{%d,%d}", &(q.min), &(q.max));
-        while (**str != '}') (*str)++;
+        while (**str != '}') (*str)++; (*str)++;
     } else if (**str != '*') {
         return (quant) { 1, 1 };
     }
-    (*str)++;
     return q;
 }
 
